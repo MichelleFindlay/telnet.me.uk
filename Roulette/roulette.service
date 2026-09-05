@@ -1,0 +1,29 @@
+[Unit]
+Description=Roulette telnet server (spins a wheel, bridges to a random backend)
+After=network.target
+
+[Service]
+Type=simple
+# Adjust User and paths to suit your host
+User=roulette
+Group=roulette
+ExecStart=/usr/bin/python3 /opt/roulette/roulette_server.py
+Restart=on-failure
+RestartSec=2
+
+# Hardening (safe for a stdlib-only Python socket server)
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/opt/roulette
+ProtectControlGroups=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+
+[Install]
+WantedBy=multi-user.target
