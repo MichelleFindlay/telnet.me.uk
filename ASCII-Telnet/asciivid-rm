@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+#
+# Stop, disable and remove an asciivid instance.
+#
+#   sudo asciivid-rm NAME
+#
+# Removes the systemd instance and its /opt/asciivid/instances/NAME dir.
+
+set -euo pipefail
+
+PREFIX=/opt/asciivid
+
+if [[ $EUID -ne 0 ]]; then
+    echo "error: run with sudo/root" >&2
+    exit 1
+fi
+
+NAME="${1:-}"
+if [[ -z "$NAME" ]]; then
+    echo "usage: sudo asciivid-rm NAME" >&2
+    exit 1
+fi
+
+INST_DIR="$PREFIX/instances/$NAME"
+if [[ ! -d "$INST_DIR" ]]; then
+    echo "error: no such instance: $NAME" >&2
+    exit 1
+fi
+
+echo ">> stopping and disabling asciivid@$NAME"
+systemctl disable --now "asciivid@$NAME.service" 2>/dev/null || true
+
+echo ">> removing $INST_DIR"
+rm -rf "$INST_DIR"
+
+echo "instance 'telnet-$NAME' removed."

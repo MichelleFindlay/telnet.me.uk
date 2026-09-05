@@ -1,0 +1,54 @@
+[Unit]
+# Template unit. Start an instance with:  systemctl start asciivid@NAME
+# %i is the instance name (the part after @). Each instance is independent.
+Description=ASCII video telnet server (instance telnet-%i)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+
+# Per-instance settings come from an env file named after the instance.
+# Each file defines PORT (and may override HOST or CACHE). The cache file
+# defaults to /opt/asciivid/instances/%i/frames.dat.
+EnvironmentFile=/opt/asciivid/instances/%i/env
+Environment=HOST=0.0.0.0
+Environment=CACHE=/opt/asciivid/instances/%i/frames.dat
+
+ExecStart=/usr/bin/python3 /opt/asciivid/asciivid.py serve ${CACHE} --host ${HOST} --port ${PORT}
+
+User=asciivid
+Group=asciivid
+WorkingDirectory=/opt/asciivid
+
+Restart=on-failure
+RestartSec=2
+
+# --- hardening (public-facing network listener) --------------------------
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+CapabilityBoundingSet=
+AmbientCapabilities=
+ReadOnlyPaths=/opt/asciivid
+UMask=0077
+
+LimitNOFILE=4096
+TasksMax=256
+
+[Install]
+WantedBy=multi-user.target

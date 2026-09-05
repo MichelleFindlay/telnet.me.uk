@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+#
+# List all asciivid instances, their ports, and running state.
+#
+#   asciivid-ls
+
+set -euo pipefail
+
+PREFIX=/opt/asciivid
+INST="$PREFIX/instances"
+
+if [[ ! -d "$INST" ]]; then
+    echo "no instances (is asciivid installed?)" >&2
+    exit 0
+fi
+
+shopt -s nullglob
+dirs=("$INST"/*/)
+if (( ${#dirs[@]} == 0 )); then
+    echo "no instances yet. create one: sudo asciivid-add NAME frames.dat PORT"
+    exit 0
+fi
+
+printf "%-20s %-7s %-8s %s\n" "NAME" "PORT" "STATE" "UNIT"
+printf "%-20s %-7s %-8s %s\n" "----" "----" "-----" "----"
+for d in "${dirs[@]}"; do
+    name=$(basename "$d")
+    port=$(sed -n 's/^PORT=//p' "$d/env" 2>/dev/null || echo "?")
+    unit="asciivid@$name"
+    if systemctl is-active --quiet "$unit.service"; then
+        state="active"
+    else
+        state=$(systemctl is-active "$unit.service" 2>/dev/null || echo "dead")
+    fi
+    printf "%-20s %-7s %-8s %s\n" "telnet-$name" "$port" "$state" "$unit"
+done

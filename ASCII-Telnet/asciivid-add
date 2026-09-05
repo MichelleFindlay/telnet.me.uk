@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+#
+# Create and start a new asciivid instance.
+#
+#   sudo asciivid-add NAME /path/to/frames.dat PORT [HOST]
+#
+# Example:
+#   sudo asciivid-add rickroll ./rickroll.dat 2323
+#
+# The systemd instance is named  asciivid@NAME  and its Description shows
+# "telnet-NAME". Each instance gets its own dir, cache, port and env file
+# under /opt/asciivid/instances/NAME/.
+
+set -euo pipefail
+
+PREFIX=/opt/asciivid
+SVC_USER=asciivid
+
+if [[ $EUID -ne 0 ]]; then
+    echo "error: run with sudo/root" >&2
+    exit 1
+fi
+
+NAME="${1:-}"
+CACHE_SRC="${2:-}"
+PORT="${3:-}"
+HOST="${4:-0.0.0.0}"
+
+if [[ -z "$NAME" || -z "$CACHE_SRC" || -z "$PORT" ]]; then
+    echo "usage: sudo asciivid-add NAME /path/to/frames.dat PORT [HOST]" >&2
+    exit 1
+fi
+
+# Validate the name: letters, digits, dash, underscore only (systemd instance
+# names and filesystem-safe). Reject anything else early.
+if [[ ! "$NAME" =~ ^[A-Za-z0-9_-]+$ ]]; then
+    echo "error: NAME may contain only letters, digits, - and _" >&2
+    exit 1
+fi
+
+if [[ ! -f "$CACHE_SRC" ]]; then
+    echo "error: no such cache file: $CACHE_SRC" >&2
+    echo "  render one: python3 asciivid.py render input.mp4 --out frames.dat" >&2
+    exit 1
+fi
+
+if [[ ! "$PORT" =~ ^[0-9]+$ ]] || (( PORT < 1 || PORT > 65535 )); then
+    echo "error: PORT must be 1-65535" >&2
+    exit 1
+fi
+
+INST_DIR="$PREFIX/instances/$NAME"
+
+if [[ -d "$INST_DIR" ]]; then
+    echo "error: instance '$NAME' already exists ($INST_DIR)" >&2
+    echo "  remove it first: sudo asciivid-rm $NAME" >&2
+    exit 1
+fi
+
+# Warn (don't block) if the port is already used by another instance.
+if grep -rqs "^PORT=$PORT\$" "$PREFIX/instances/"*/env 2>/dev/null; then
+    other=$(grep -rls "^PORT=$PORT\$" "$PREFIX/instances/"*/env | xargs -n1 dirname | xargs -n1 basename | tr '\n' ' ')
+    echo "warning: port $PORT is already assigned to: $other" >&2
+fi
+
+echo ">> creating instance dir $INST_DIR"
+mkdir -p "$INST_DIR"
+install -m 0644 "$CACHE_SRC" "$INST_DIR/frames.dat"
+
+cat > "$INST_DIR/env" <<EOF
+# asciivid instance: telnet-$NAME
+PORT=$PORT
+HOST=$HOST
+CACHE=$INST_DIR/frames.dat
+EOF
+chmod 0644 "$INST_DIR/env"
+chown -R "$SVC_USER:$SVC_USER" "$INST_DIR"
+
+echo ">> enabling and starting asciivid@$NAME"
+systemctl enable --now "asciivid@$NAME.service"
+
+echo
+systemctl --no-pager --full status "asciivid@$NAME.service" | head -n 6 || true
+echo
+echo "instance 'telnet-$NAME' is up."
+echo "  watch:   telnet <this-host> $PORT"
+echo "  logs:    journalctl -u asciivid@$NAME -f"
+echo "  stop:    sudo systemctl stop asciivid@$NAME"
+echo "  remove:  sudo asciivid-rm $NAME"
