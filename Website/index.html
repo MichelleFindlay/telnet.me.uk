@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Telnet Roulette</title>
+<style>
+  :root { --bg:#0a0e0a; --fg:#33ff66; --dim:#1e8a3a; --amber:#ffb000; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; min-height:100%; background:var(--bg); color:var(--fg);
+    font-family:"Courier New",Courier,monospace; }
+  body { display:flex; flex-direction:column; align-items:center; justify-content:center;
+    min-height:100vh; padding:1.5rem; gap:1.25rem;
+    background:repeating-linear-gradient(0deg,rgba(0,0,0,.25)0,rgba(0,0,0,.25)1px,transparent 1px,transparent 3px); }
+  h1 { margin:0; font-size:clamp(1.4rem,5vw,2.6rem); letter-spacing:.15em; text-transform:uppercase;
+    text-shadow:0 0 8px var(--fg); }
+  .sub { color:var(--dim); font-size:.75rem; letter-spacing:.2em; margin-top:-.5rem; text-align:center; }
+  .result { width:min(720px,100%); background:#000; border:2px solid var(--dim); border-radius:6px;
+    padding:1.25rem; min-height:130px; box-shadow:0 0 25px rgba(51,255,102,.15),inset 0 0 40px rgba(0,0,0,.9);
+    text-shadow:0 0 3px var(--fg); }
+  .result .host { color:var(--amber); font-size:1.1rem; letter-spacing:.05em; }
+  .result .desc { color:var(--dim); font-size:.75rem; margin:.35rem 0 1rem; }
+  .cmd { display:flex; align-items:center; gap:.5rem; background:#04240f; border:1px dashed var(--dim);
+    border-radius:4px; padding:.6rem .8rem; }
+  .cmd code { flex:1; color:var(--fg); font-size:.95rem; word-break:break-all; user-select:all; }
+  .copy { background:transparent; color:var(--amber); border:1px solid var(--amber); border-radius:3px;
+    font-family:inherit; font-size:.7rem; padding:.35rem .6rem; cursor:pointer; white-space:nowrap; }
+  .copy:hover { background:var(--amber); color:#000; }
+  .note { color:var(--dim); font-size:.68rem; margin-top:.75rem; line-height:1.4; }
+  .placeholder { color:var(--dim); }
+  button.spin { background:transparent; color:var(--fg); border:2px solid var(--fg); border-radius:4px;
+    font-family:inherit; font-size:1.1rem; font-weight:bold; letter-spacing:.15em; text-transform:uppercase;
+    padding:.85rem 2.2rem; cursor:pointer; text-shadow:0 0 6px var(--fg); transition:all .15s; }
+  button.spin:hover { background:var(--fg); color:#000; text-shadow:none; box-shadow:0 0 18px var(--fg); }
+  button.spin:active { transform:translateY(1px); }
+  .foot { color:var(--dim); font-size:.7rem; letter-spacing:.15em; text-align:center; }
+</style>
+</head>
+<body>
+  <h1>Telnet Roulette</h1>
+  <div class="sub">// PULL THE LEVER. GET A HOST. RUN THE COMMAND. //</div>
+
+  <button class="spin" id="btn" onclick="pull()">Pull the Lever</button>
+
+  <div class="result" id="result">
+    <div class="placeholder">Pull the lever to be assigned a live telnet host.<br>Then run the command it gives you in your terminal.</div>
+  </div>
+
+  <div class="foot" id="ticket">NO BET PLACED</div>
+
+<script>
+var HOSTS = [
+  { host:"roulette.g.lp0.uk", port:21596,   desc:"The Roulette Wheel" },
+];
+
+var result=document.getElementById("result");
+function rnd(a,b){ return Math.floor(Math.random()*(b-a+1))+a; }
+function esc(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+function pull(){
+  var t=HOSTS[rnd(0,HOSTS.length-1)];
+  document.getElementById("ticket").textContent="TICKET #"+String(rnd(1,999999)).padStart(6,"0");
+  var cmd="telnet "+t.host+" "+t.port;
+  result.innerHTML=
+    '<div class="host">&gt; '+esc(t.host)+' :'+t.port+'</div>'+
+    '<div class="desc">'+esc(t.desc)+'</div>'+
+    '<div class="cmd"><code id="cmd">'+esc(cmd)+'</code>'+
+    '<button class="copy" onclick="copyCmd()">COPY</button></div>'+
+    '<div class="note">Paste this into your terminal to connect. '+
+    'To quit telnet, press <b>Ctrl+]</b> then type <b>quit</b>. '+
+    'No telnet? Try <code>nc '+esc(t.host)+' '+t.port+'</code> instead.</div>';
+}
+
+function copyCmd(){
+  var txt=document.getElementById("cmd").textContent;
+  navigator.clipboard.writeText(txt).then(function(){
+    var b=document.querySelector(".copy"); var o=b.textContent;
+    b.textContent="COPIED"; setTimeout(function(){ b.textContent=o; },1200);
+  });
+}
+</script>
+</body>
+</html>
