@@ -36,6 +36,24 @@ BACKENDS = [
     ("127.0.0.1", 2326, "gangnam-style"),
     ("127.0.0.1", 2327, "chocolate-rain"),
     ("127.0.0.1", 2328, "baby-shark"),
+    ("127.0.0.1", 2329, "friday"),
+    ("127.0.0.1", 2330, "charlie-bit-my-finger"),
+    ("127.0.0.1", 2331, "keyboard-cat"),
+    ("127.0.0.1", 2332, "mr-trololo"),
+    ("127.0.0.1", 2333, "crazy-frog"),
+    ("127.0.0.1", 2334, "numa-numa"),
+    ("127.0.0.1", 2335, "the-duck-song"),
+    ("127.0.0.1", 2336, "nobody-got-time-for-that"),
+    ("127.0.0.1", 2337, "the-dramatic-chipmmunk"),
+    ("127.0.0.1", 2338, "HEYYEYAAEYAAAEYAEYAA"),
+    ("127.0.0.1", 3238, "i-like-rusty-spoons"),
+    ("127.0.0.1", 3239, "im-a-banana"),
+    ("127.0.0.1", 3240, "lazytown-lil-john"),
+    ("127.0.0.1", 3241, "limewire"),
+    ("127.0.0.1", 3242, "little-babies-ice-cream"),
+    ("127.0.0.1", 3243, "rubber-johnny"),
+    ("127.0.0.1", 3244, "squatty-potty"),
+    ("127.0.0.1", 3245, "the-annoying-orange"),    
 ]
 
 CLS = "\x1b[2J\x1b[H"
@@ -67,14 +85,17 @@ def draw_wheel(conn, highlight, spinning=True):
 def spin(conn):
     n = len(BACKENDS)
     target = random.randrange(n)
-    total_steps = n * random.randint(3, 5) + target
-    delay = 0.04
+    rotations = random.randint(2, 3)
+    total_steps = n * rotations + target
+    decel_steps = min(total_steps, random.randint(4, 8))
+    delay = random.uniform(0.025, 0.045)
+    decel_rate = random.uniform(0.02, 0.04)
     send(conn, HIDE)
     for step in range(total_steps + 1):
         draw_wheel(conn, step % n, spinning=True)
         time.sleep(delay)
-        if step > total_steps - n:
-            delay += 0.06
+        if step > total_steps - decel_steps:
+            delay += decel_rate
     draw_wheel(conn, target, spinning=False)
     send(conn, SHOW)
     time.sleep(0.8)
