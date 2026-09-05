@@ -127,12 +127,12 @@ def handle(client, addr):
         time.sleep(0.4)
         idx = spin(client)
         host, port, name = BACKENDS[idx]
-        send(client, f"\n\n>>> You landed on: {BOLD}{name}{RESET} ({host}:{port})\n")
+        send(client, f"\n\n>>> You landed on: {BOLD}{name}{RESET}\n")
         time.sleep(0.6)
         try:
             backend = socket.create_connection((host, port), timeout=5)
-        except OSError as e:
-            send(client, f"\nBackend {name} unavailable: {e}\n")
+        except OSError:
+            send(client, f"\nBackend {name} unavailable.\n")
             return
         send(client, "\n" + "-" * 40 + "\n")
         bridge(client, backend)
