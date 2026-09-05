@@ -9,13 +9,27 @@
   * { box-sizing:border-box; }
   html,body { margin:0; min-height:100%; background:var(--bg); color:var(--fg);
     font-family:"Courier New",Courier,monospace; }
-  body { display:flex; flex-direction:column; min-height:100vh;
+  body { display:flex; flex-direction:column; min-height:100vh; position:relative;
     background:repeating-linear-gradient(0deg,rgba(0,0,0,.25)0,rgba(0,0,0,.25)1px,transparent 1px,transparent 3px); }
-  .page { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
-    padding:1.5rem; gap:1.25rem; }
+  .rain { position:fixed; inset:0; z-index:0; overflow:hidden; pointer-events:none; }
+  .rain-col { position:absolute; top:0; left:0; white-space:pre; font-size:1.1rem; line-height:1.5;
+    width:26px; text-align:center; color:var(--dim); opacity:.4; text-shadow:0 0 6px var(--dim);
+    will-change:transform; }
+  .page { position:relative; z-index:1; flex:1; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; padding:1.5rem; gap:1.25rem; }
   h1 { margin:0; font-size:clamp(1.4rem,5vw,2.6rem); letter-spacing:.15em; text-transform:uppercase;
     text-shadow:0 0 8px var(--fg); }
   .sub { color:var(--dim); font-size:.75rem; letter-spacing:.2em; margin-top:-.5rem; text-align:center; }
+  .theme-picker { display:flex; align-items:center; gap:.5rem; }
+  .swatch { width:22px; height:22px; border-radius:50%; border:2px solid rgba(255,255,255,.15);
+    background:var(--sw); cursor:pointer; padding:0; box-shadow:0 0 8px var(--sw); transition:transform .15s; }
+  .swatch:hover { transform:scale(1.15); }
+  .swatch.active { border-color:#fff; }
+  #customColor { width:26px; height:26px; padding:0; border:2px solid rgba(255,255,255,.15);
+    border-radius:50%; background:none; cursor:pointer; }
+  #customColor::-webkit-color-swatch-wrapper { padding:0; border-radius:50%; }
+  #customColor::-webkit-color-swatch { border:none; border-radius:50%; }
+  #customColor::-moz-color-swatch { border:none; border-radius:50%; }
   .result { width:min(720px,100%); background:#000; border:2px solid var(--dim); border-radius:6px;
     padding:1.25rem; min-height:130px; box-shadow:0 0 25px rgba(51,255,102,.15),inset 0 0 40px rgba(0,0,0,.9);
     text-shadow:0 0 3px var(--fg); }
@@ -57,8 +71,15 @@
   .os-box ol { margin:0; padding-left:1.1rem; color:var(--dim); font-size:.68rem; line-height:1.6; }
   .os-box code { color:var(--fg); background:#04240f; border-radius:3px; padding:.05rem .3rem;
     word-break:break-all; }
-  .site-footer { border-top:1px solid var(--dim); padding:.9rem 1.5rem; display:flex; flex-wrap:wrap;
-    align-items:center; justify-content:space-between; gap:.75rem; }
+  .site-footer { position:relative; z-index:1; background:#000; border-top:1px solid var(--dim);
+    padding:.9rem 1.5rem; display:flex; flex-wrap:wrap; align-items:center; justify-content:center;
+    gap:.9rem 1.5rem; max-width:100%; overflow-wrap:anywhere; }
+  .bg-toggle { background:transparent; color:var(--fg); border:1px solid var(--dim); border-radius:4px;
+    font-family:inherit; font-size:.65rem; letter-spacing:.1em; text-transform:uppercase;
+    padding:.3rem .6rem; cursor:pointer; }
+  .bg-toggle:hover { background:var(--dim); color:#000; }
+  .bg-toggle.off { opacity:.5; }
+  @media (max-width:640px) { .site-footer { flex-direction:column; text-align:center; } }
   .footer-links { color:var(--dim); font-size:.65rem; letter-spacing:.1em; }
   .footer-links a { color:var(--fg); text-decoration:none; }
   .footer-links a:hover { text-decoration:underline; }
@@ -71,6 +92,7 @@
 </style>
 </head>
 <body>
+  <div class="rain" id="rain" aria-hidden="true"></div>
   <div class="page">
     <h1>Telnet Roulette</h1>
     <div class="sub">// PULL THE LEVER. GET A HOST. RUN THE COMMAND. //</div>
@@ -125,6 +147,16 @@
         FFmpeg
       </span>
     </div>
+    <div class="theme-picker" id="themePicker" title="Pick a neon theme">
+      <button class="swatch active" style="--sw:#33ff66" data-fg="#33ff66" data-dim="#1e8a3a" data-bg="#0a0e0a" aria-label="Neon green"></button>
+      <button class="swatch" style="--sw:#00e5ff" data-fg="#00e5ff" data-dim="#0a7a8a" data-bg="#050f14" aria-label="Neon cyan"></button>
+      <button class="swatch" style="--sw:#ff2fd0" data-fg="#ff2fd0" data-dim="#8a1a73" data-bg="#140a13" aria-label="Neon pink"></button>
+      <button class="swatch" style="--sw:#b967ff" data-fg="#b967ff" data-dim="#5c3380" data-bg="#0f0a16" aria-label="Neon purple"></button>
+      <button class="swatch" style="--sw:#ff2b4d" data-fg="#ff2b4d" data-dim="#8a1626" data-bg="#150a0b" aria-label="Neon red"></button>
+      <button class="swatch" style="--sw:#ffe135" data-fg="#ffe135" data-dim="#8a7a1c" data-bg="#141208" aria-label="Neon yellow"></button>
+      <input type="color" id="customColor" value="#33ff66" aria-label="Custom colour wheel">
+      <button class="bg-toggle" id="bgToggle" type="button">BG: ON</button>
+    </div>
   </footer>
 
 <script>
@@ -160,6 +192,106 @@ function pull(){
     btn.disabled=false;
   },1200);
 }
+
+function hexDim(hex){
+  var n=parseInt(hex.slice(1),16);
+  var r=Math.round(((n>>16)&255)*0.55), g=Math.round(((n>>8)&255)*0.55), b=Math.round((n&255)*0.55);
+  return '#'+[r,g,b].map(function(v){ return v.toString(16).padStart(2,"0"); }).join("");
+}
+function hexBg(hex){
+  var n=parseInt(hex.slice(1),16);
+  var r=Math.round(((n>>16)&255)*0.06)+4, g=Math.round(((n>>8)&255)*0.06)+5, b=Math.round((n&255)*0.06)+4;
+  return '#'+[r,g,b].map(function(v){ return Math.min(v,255).toString(16).padStart(2,"0"); }).join("");
+}
+function setTheme(fg,dim,bg){
+  document.documentElement.style.setProperty("--fg",fg);
+  document.documentElement.style.setProperty("--dim",dim);
+  document.documentElement.style.setProperty("--bg",bg);
+  try{
+    localStorage.setItem("rouletteFg",fg);
+    localStorage.setItem("rouletteDim",dim);
+    localStorage.setItem("rouletteBg",bg);
+  }catch(e){}
+}
+document.querySelectorAll(".swatch").forEach(function(s){
+  s.addEventListener("click",function(){
+    setTheme(s.dataset.fg,s.dataset.dim,s.dataset.bg);
+    document.querySelectorAll(".swatch").forEach(function(x){ x.classList.remove("active"); });
+    s.classList.add("active");
+    document.getElementById("customColor").value=s.dataset.fg;
+  });
+});
+document.getElementById("customColor").addEventListener("input",function(e){
+  setTheme(e.target.value,hexDim(e.target.value),hexBg(e.target.value));
+  document.querySelectorAll(".swatch").forEach(function(x){ x.classList.remove("active"); });
+});
+(function(){
+  try{
+    var fg=localStorage.getItem("rouletteFg"), dim=localStorage.getItem("rouletteDim"),
+        bg=localStorage.getItem("rouletteBg");
+    if(fg&&dim&&bg){
+      setTheme(fg,dim,bg);
+      document.getElementById("customColor").value=fg;
+      var match=document.querySelector('.swatch[data-fg="'+fg+'"]');
+      document.querySelectorAll(".swatch").forEach(function(x){ x.classList.remove("active"); });
+      if(match) match.classList.add("active");
+    }
+  }catch(e){}
+})();
+
+(function(){
+  var rain=document.getElementById("rain");
+  var chars=["🎰","♠","♥","♦","♣","🎲","7","0","$","●"];
+  var n=Math.ceil(window.innerWidth/28);
+  var cols=[];
+
+  for(var i=0;i<n;i++){
+    var col=document.createElement("div");
+    col.className="rain-col";
+    var baseX=i*28;
+    col.style.left=baseX+"px";
+    var len=18+Math.floor(Math.random()*12);
+    var text="";
+    for(var j=0;j<len;j++){ text+=chars[Math.floor(Math.random()*chars.length)]+"\n"; }
+    col.textContent=text;
+    rain.appendChild(col);
+    cols.push({ el:col, y:-Math.random()*window.innerHeight*1.6, speed:18+Math.random()*22 });
+  }
+
+  var lastTime=null;
+  function frame(t){
+    if(lastTime===null) lastTime=t;
+    var dt=Math.min((t-lastTime)/1000,0.05);
+    lastTime=t;
+    var vh=window.innerHeight;
+
+    for(var k=0;k<cols.length;k++){
+      var c=cols[k];
+      c.y+=c.speed*dt;
+      if(c.y>vh+40) c.y=-40-Math.random()*200;
+      c.el.style.transform="translateY("+c.y.toFixed(1)+"px)";
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+
+(function(){
+  var rain=document.getElementById("rain");
+  var bgToggle=document.getElementById("bgToggle");
+  function applyBg(on){
+    rain.style.display=on?"":"none";
+    bgToggle.textContent="BG: "+(on?"ON":"OFF");
+    bgToggle.classList.toggle("off",!on);
+  }
+  bgToggle.addEventListener("click",function(){
+    applyBg(rain.style.display==="none");
+    try{ localStorage.setItem("rouletteBgOn",rain.style.display==="none"?"0":"1"); }catch(e){}
+  });
+  try{
+    if(localStorage.getItem("rouletteBgOn")==="0") applyBg(false);
+  }catch(e){}
+})();
 
 function copyCmd(){
   var txt=document.getElementById("cmd").textContent;
